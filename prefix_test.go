@@ -11,6 +11,7 @@ import (
 //[5:7] header length
 //[7:8] type
 var static_data []byte = []byte{1, 1, 0, 0, 0, 34, 0, 8}
+var checksum []byte = []byte{160, 187, 13, 182, 213, 246, 230, 182, 96, 189, 50, 53, 196, 50, 155, 160, 96, 66, 19, 60}
 
 func TestPrefixGenerate(t *testing.T) {
 	p := Prefix{
@@ -22,12 +23,22 @@ func TestPrefixGenerate(t *testing.T) {
 	}
 
 	d, err := p.Generate()
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if fmt.Sprintf("%+v", *d) != fmt.Sprintf("%+v", static_data) {
 		t.Fatal(fmt.Errorf("prefix generated incorrect data?\nreceived: %+v\nexpected: %+v", *d, static_data))
+	}
+
+	ck, err := p.Checksum()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fmt.Sprintf("%+v", ck) != fmt.Sprintf("%+v", checksum) {
+		t.Fatal(fmt.Sprintf("checksum mismatch, %+v != %+v\n", ck, checksum))
 	}
 }
 

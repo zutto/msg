@@ -1,5 +1,7 @@
 package msg
 
+import "crypto/sha1"
+
 type EnvelopeLabels struct {
 	MessageId      []byte
 	MessageFeature []byte
@@ -32,4 +34,15 @@ func (el *EnvelopeLabels) Parse(eh EnvelopeHeaders, data *[]byte, padding int) e
 	}
 
 	return nil
+}
+
+func (el *EnvelopeLabels) Checksum() ([]byte, error) {
+	data, err := el.Generate()
+	if err != nil {
+		return nil, err
+	}
+
+	output := sha1.Sum(*data)
+	return output[:], nil
+
 }

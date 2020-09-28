@@ -1,5 +1,7 @@
 package msg
 
+import "crypto/sha1"
+
 const (
 	SIZE      = 1458 //could be 1472 -- jumbo upto 65k, idc
 	INIT_BYTE = 1
@@ -68,6 +70,42 @@ func NewEnvelope() *Envelope {
 		AutoIncrement:    true,
 	}
 	return &e
+}
+
+func (e *Envelope) Checksum() ([]byte, error) {
+	prefixChecksum, err := e.Prefix.Checksum()
+	if err != nil {
+		return nil, err
+	}
+
+	headerChecksum, err := e.Headers.Checksum()
+	if err != nil {
+		return nil, err
+	}
+
+	envelopeHeadersChecksum, err := e.EnvelopeHeaders.Checksum()
+	if err != nil {
+		return nil, err
+	}
+
+	envelopeLabelsChecksum, err := e.EnvelopeLabels.Checksum()
+	if err != nil {
+		return nil, err
+	}
+
+	messageChecksum, err := e.Message.Checksum()
+	if err != nil {
+		return nil, err
+	}
+
+	outputChecksums := [][]byte{prefixChecksum, headerChecksum, envelopeHeadersChecksum, envelopeLabelsChecksum, messageChecksum}
+	var data []byte
+	for _, v := range outputChecksums {
+		data = append(data, v...)
+	}
+
+	output := sha1.Sum(data)
+	return output[:], nil
 }
 
 func (e *Envelope) Generate() (*[]byte, int, error) {

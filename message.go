@@ -3,6 +3,7 @@ package msg
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/sha1"
 	"errors"
 	"github.com/pierrec/lz4"
 	"sync"
@@ -37,6 +38,18 @@ func (m *Message) Parse(data *[]byte, pad int) error {
 func (m *Message) SetData(d []byte) error {
 	m.Data = &d
 	return nil
+}
+
+func (m *Message) Checksum() ([]byte, error) {
+	var cmp uint8 = 0
+	if m.Compressed {
+		cmp = 1
+	}
+
+	var data []byte = []byte{byte(cmp), byte(m.CompressionType)}
+	output := sha1.Sum(append(data, (*m.Data)[:]...))
+
+	return output[:], nil
 }
 
 func (m *Message) GetData(from, to int) (*[]byte, int, error) {

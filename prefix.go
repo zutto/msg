@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 )
@@ -39,4 +40,14 @@ func (p *Prefix) Parse(data *[]byte, pad int) error {
 		return fmt.Errorf("Invalid init byte. Received %d, expected %d.", p.Init, INIT_BYTE)
 	}
 	return nil
+}
+
+func (p *Prefix) Checksum() ([]byte, error) {
+	data, err := p.Generate()
+	if err != nil {
+		return nil, err
+	}
+
+	output := sha1.Sum(*data)
+	return output[:], nil
 }

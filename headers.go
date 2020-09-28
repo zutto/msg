@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"crypto/sha1"
 	"encoding/binary"
 	"math"
 )
@@ -31,4 +32,15 @@ func (h *Headers) Parse(data *[]byte, pad int) error {
 	h.TotalPackets = binary.LittleEndian.Uint32((*data)[pad+4 : pad+8])
 	h.TotalLength = binary.LittleEndian.Uint64((*data)[pad+8 : pad+16])
 	return nil
+}
+
+func (h *Headers) Checksum() ([]byte, error) {
+	data, err := h.Generate()
+	if err != nil {
+		return nil, err
+	}
+
+	output := sha1.Sum(*data)
+	return output[:], nil
+
 }

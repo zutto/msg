@@ -9,8 +9,10 @@ import (
 //[4:8] packet count
 //[8:16] total length of message (not the packet..)
 var static_header []byte = []byte{1, 0, 0, 0, 2, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0}
+var header_checksum1 []byte = []byte{47, 87, 211, 152, 84, 19, 179, 49, 227, 82, 190, 190, 42, 71, 74, 182, 82, 164, 249, 163}
 
 var static_header2 []byte = []byte{2, 0, 0, 0, 4, 0, 0, 0, 200, 0, 0, 0, 0, 0, 0, 0}
+var header_checksum2 []byte = []byte{23, 58, 179, 138, 114, 246, 245, 157, 181, 144, 119, 119, 233, 124, 22, 216, 183, 166, 86, 218}
 
 func TestGenerate(t *testing.T) {
 	h := Headers{
@@ -27,7 +29,13 @@ func TestGenerate(t *testing.T) {
 	if fmt.Sprintf("%+v", *d) != fmt.Sprintf("%+v", static_header) {
 		t.Fatal(fmt.Errorf("generated does not match static."))
 	}
-
+	ck, err := h.Checksum()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%+v", ck) != fmt.Sprintf("%+v", header_checksum1) {
+		t.Fatal(fmt.Sprintf("checksum mismatch, expected %+v, got %+v", ck, header_checksum1))
+	}
 	//2
 	h.TotalLength = 200
 	h.IncrementIndex()
@@ -35,6 +43,14 @@ func TestGenerate(t *testing.T) {
 	d, err = h.Generate()
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	ck, err = h.Checksum()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%+v", ck) != fmt.Sprintf("%+v", header_checksum2) {
+		t.Fatal(fmt.Sprintf("checksum mismatch, expected %+v, got %+v", ck, header_checksum2))
 	}
 
 	if fmt.Sprintf("%+v", *d) != fmt.Sprintf("%+v", static_header2) {

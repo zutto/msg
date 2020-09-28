@@ -6,6 +6,7 @@ import (
 )
 
 var static_envlab []byte = []byte{1, 2, 3, 4}
+var envlab_checksum []byte = []byte{18, 218, 218, 31, 255, 77, 71, 135, 173, 227, 51, 49, 71, 32, 44, 59, 68, 62, 55, 111}
 
 func TestEnvelopeLabelsGenerate(t *testing.T) {
 	el := EnvelopeLabels{
@@ -25,6 +26,16 @@ func TestEnvelopeLabelsGenerate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	ck, err := el.Checksum()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fmt.Sprintf("%+v", ck) != fmt.Sprintf("%+v", envlab_checksum) {
+		t.Fatal(fmt.Sprintf("checksum mismatch, expected %+v, got %+v", ck, envlab_checksum))
+	}
+
 	if fmt.Sprintf("%+v", *d) != fmt.Sprintf("%+v", static_envlab) {
 		t.Fatal(fmt.Errorf("wrong data received on generate"))
 	}

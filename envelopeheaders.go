@@ -1,6 +1,9 @@
 package msg
 
-import "encoding/binary"
+import (
+	"crypto/sha1"
+	"encoding/binary"
+)
 
 type EnvelopeHeaders struct {
 	MessageIdLength      uint16 //[0:4] length of the message id
@@ -27,4 +30,15 @@ func (eh *EnvelopeHeaders) Parse(data *[]byte, pad int) error {
 	eh.MessageFeatureLength = binary.LittleEndian.Uint16((*data)[pad+4 : pad+8])
 
 	return nil
+}
+
+func (eh *EnvelopeHeaders) Checksum() ([]byte, error) {
+	data, err := eh.Generate()
+	if err != nil {
+		return nil, err
+	}
+
+	output := sha1.Sum(*data)
+	return output[:], nil
+
 }
