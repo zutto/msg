@@ -6,13 +6,14 @@ import (
 	"io"
 )
 
+//
 const (
-	NO_STATE = iota
-	PREFIX_STATE
-	HEADERS_STATE
-	ENVELOPEHEADERS_STATE
-	ENVELOPELABELS_STATE
-	MESSAGE_STATE
+	no_state = iota
+	prefix_state
+	headers_state
+	envelopeheaders_state
+	envelopelabels_state
+	message_state
 )
 
 type envelopeReadState struct {
@@ -93,9 +94,9 @@ func (s *StreamReader) Read(data []byte) (int, error) {
 
 	//prefix
 	if s.envelope.Prefix.Init == uint8(0) || !s.read_state.Prefix {
-		if s.read_state.STATE != PREFIX_STATE {
+		if s.read_state.STATE != prefix_state {
 			s.buffer = make([]byte, PREFIX_LEN)
-			s.read_state.STATE = PREFIX_STATE
+			s.read_state.STATE = prefix_state
 			s.read_state.READ_LEN = 0
 		}
 		if s.read_state.READ_LEN < PREFIX_LEN {
@@ -117,9 +118,9 @@ func (s *StreamReader) Read(data []byte) (int, error) {
 	}
 
 	if s.read_state.Prefix && !s.read_state.Headers {
-		if s.read_state.STATE != HEADERS_STATE {
+		if s.read_state.STATE != headers_state {
 			s.buffer = make([]byte, HEADER_LEN)
-			s.read_state.STATE = HEADERS_STATE
+			s.read_state.STATE = headers_state
 			s.read_state.READ_LEN = 0
 		}
 		if s.read_state.READ_LEN < HEADER_LEN {

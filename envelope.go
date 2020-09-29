@@ -1,18 +1,29 @@
+// msg is a byte serialization format for 'packets' or 'messages' or 'envelopes'.
+//
+// Goal of msg is to be able to store these 'packets' or 'messages' on storage mediums, be able to send them through ip links, fifo, unix pipes. (disclaimer: checksums are not.. yet.. part of the packets, so these are not to be used on unstable/unreliable mediums.)
+//
+// Each packet contains ID, Feature and data.
+// Data can be of any length, and it shall automatically be packed into a sequence of packets that can be later recompiled into one.
 package msg
 
 import "crypto/sha1"
 
+// Envelope constants.
 const (
-	SIZE      = 1458 //could be 1472 -- jumbo upto 65k, idc
+	//default message size - goal is to fit this into normal tcp frame, this can be changed per envelope.
+	SIZE = 1458
+
+	//init byte, not very necessary but helps to keep track of the stream.
 	INIT_BYTE = 1
 
+	//static values, may change between versions
 	PREFIX_LEN          = 8
 	HEADER_LEN          = 16
 	ENVELOPE_HEADER_LEN = 8
 	MESSAGE_PREFIX_LEN  = 2
 	TOTAL_HEADER_LEN    = PREFIX_LEN + HEADER_LEN + ENVELOPE_HEADER_LEN + MESSAGE_PREFIX_LEN
 
-	// to be decided wtf these are really
+	//packet types. this is to be changed possibly, or one could make custom types? these are just hints for receiver.
 	INIT = iota
 	FRAGMENT
 	STREAM
@@ -72,6 +83,7 @@ func NewEnvelope() *Envelope {
 	return &e
 }
 
+//Checksum generates checksum from all of the envelope feature checksums
 func (e *Envelope) Checksum() ([]byte, error) {
 	prefixChecksum, err := e.Prefix.Checksum()
 	if err != nil {
@@ -108,10 +120,24 @@ func (e *Envelope) Checksum() ([]byte, error) {
 	return output[:], nil
 }
 
+//Generate generates the envelope from zero.
+//This function retuns data, length and error.
 func (e *Envelope) Generate() (*[]byte, int, error) {
 	return e.GenerateFromByte(0)
 }
 
+//GenerateFromByte generates envelope starting from N byte. This function retuns data, length and error.
+//This is for sending large, or multipart envelopes.
+//	processedBytes := 0
+// 	for processedBytes < e.Envelope.Message.Len() {
+//		data, n, err := s.envelope.GenerateFromByte(processed)
+//		if err != nil {
+//			//..handle error
+//		}
+//		//..send/store/whatever with the data.
+//
+//		processedBytes += n
+//	}
 func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 	limit := 0
 	if e.Message.Len() > e.MessageSizeLimit {
@@ -173,11 +199,16 @@ func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 	return &b, limit, nil
 }
 
+//GetHeaderSize Calculates header size of the envelope. Does not include the hidden headers included in Message used for compression.
 func (e *Envelope) GetHeaderSize() int {
 	return TOTAL_HEADER_LEN + len(e.EnvelopeLabels.MessageId) + len(e.EnvelopeLabels.MessageFeature)
 }
 
-//convenience functions..
+//AddLabels is a convenience function to add ID and feature byte slices into the Envelope's EnvelopeLabels struct.
+//you can manually insert these by doing something like this:
+//
+//	e.EnvelopeLabels.MessageId = []byte{"my id"}
+//
 func (e *Envelope) AddLabels(id, feature []byte) error {
 	e.EnvelopeLabels.MessageId = id
 	e.EnvelopeLabels.MessageFeature = feature
@@ -185,15 +216,22 @@ func (e *Envelope) AddLabels(id, feature []byte) error {
 	return nil
 }
 
+//AddMessage is a convenience function to insert data into the envelopes Message.
+//You can also insert data manually by doing something like this:
+//	myData := []byte{"foo bar"}
+//	e.Message.Data = &myData
 func (e *Envelope) AddMessage(data []byte) error {
 	return e.Message.SetData(data)
 }
 
+//SetCompression sets the compression method for data, set to 'NIL' for no compression.
 func (e *Envelope) SetCompression(cmp uint8) error {
 	e.Message.CompressionType = cmp
 	return nil
 }
 
+//SetVersions sets the envelope version
+//TODO - this is not currently used or validated as this is version 1.
 func (e *Envelope) SetVersion(ver uint16) error {
 	e.Prefix.Version = ver
 	return nil

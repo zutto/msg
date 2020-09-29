@@ -9,21 +9,24 @@ import (
 	"sync"
 )
 
+//Compression types
 const (
 	NIL = iota
 	LZ4
 	GZIP
 )
 
+//Message contains the (optional) user defined data for the envelope.
 type Message struct {
-	Data *[]byte
+	Data *[]byte //Data of any size
 
-	Compressed      bool
-	CompressionType uint8
+	Compressed      bool  //true false if current data is compressed
+	CompressionType uint8 //compression type used/to be used.
 
 	lock sync.Mutex
 }
 
+//Parse parses input data, data can be read from padded starting position.
 func (m *Message) Parse(data *[]byte, pad int) error {
 	if uint8((*data)[pad+0]) == uint8(1) {
 		m.Compressed = true
@@ -35,11 +38,13 @@ func (m *Message) Parse(data *[]byte, pad int) error {
 	return nil
 }
 
+//SetData is convenience function to set the data.
 func (m *Message) SetData(d []byte) error {
 	m.Data = &d
 	return nil
 }
 
+//Checksum generates SHA-1 checksum from the message.
 func (m *Message) Checksum() ([]byte, error) {
 	var cmp uint8 = 0
 	if m.Compressed {
@@ -52,6 +57,7 @@ func (m *Message) Checksum() ([]byte, error) {
 	return output[:], nil
 }
 
+//GetData retusn data from X position to Y position. Returns data, length, and error.
 func (m *Message) GetData(from, to int) (*[]byte, int, error) {
 	if m.Data == nil {
 		return nil, 0, errors.New("no data in message.")
@@ -85,6 +91,7 @@ func (m *Message) Len() int {
 	return 0
 }
 
+//Compress compresses the current data and marks it as compressed.
 func (m *Message) Compress(level int) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -102,6 +109,7 @@ func (m *Message) Compress(level int) error {
 	}
 }
 
+//DeCompress decompresses the current data and marks it as uncompressed.
 func (m *Message) DeCompress() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()

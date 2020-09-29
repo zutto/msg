@@ -6,6 +6,8 @@ import (
 	"fmt"
 )
 
+//Prefix contains the basic data for the current packet
+//Including: Init byte, version of the packet, length of the current packet, length of headers and type.
 type Prefix struct {
 	Init         uint8  // [0:1] always 1?
 	Version      uint16 // [1:3] 1..to be changed?
@@ -14,6 +16,7 @@ type Prefix struct {
 	Type         uint8  // [7:8] packet type
 }
 
+//Generate generates the prefix for the envelope.
 func (p *Prefix) Generate() (*[]byte, error) {
 	var data []byte = make([]byte, 8)
 	data[0] = byte(INIT_BYTE)
@@ -28,6 +31,7 @@ func (p *Prefix) Generate() (*[]byte, error) {
 	return &data, nil
 }
 
+//Parse parses the input data, data can be read from padded startin position.
 func (p *Prefix) Parse(data *[]byte, pad int) error {
 
 	p.Init = uint8((*data)[pad+0])
@@ -42,6 +46,7 @@ func (p *Prefix) Parse(data *[]byte, pad int) error {
 	return nil
 }
 
+//Checksum generates SHA-1 checksum for the prefix.
 func (p *Prefix) Checksum() ([]byte, error) {
 	data, err := p.Generate()
 	if err != nil {
