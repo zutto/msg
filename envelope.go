@@ -6,22 +6,27 @@
 // Data can be of any length, and it shall automatically be packed into a sequence of packets that can be later recompiled into one.
 package msg
 
-import "crypto/sha1"
+import (
+	"crypto/sha1"
+	"errors"
+)
 
 // Envelope constants.
 const (
-	//default message size - goal is to fit this into normal tcp frame, this can be changed per envelope.
-	SIZE = 1458
-
 	//init byte, not very necessary but helps to keep track of the stream.
 	INIT_BYTE = 1
 
 	//static values, may change between versions
 	PREFIX_LEN          = 8
-	HEADER_LEN          = 16
+	HEADER_LEN          = 16 + 20
 	ENVELOPE_HEADER_LEN = 8
 	MESSAGE_PREFIX_LEN  = 2
-	TOTAL_HEADER_LEN    = PREFIX_LEN + HEADER_LEN + ENVELOPE_HEADER_LEN + MESSAGE_PREFIX_LEN
+	//CHECKSUM_LEN        = 20
+	TOTAL_HEADER_LEN = PREFIX_LEN + HEADER_LEN + ENVELOPE_HEADER_LEN + MESSAGE_PREFIX_LEN // + CHECKSUM_LEN
+
+	//default message size - Can be modified to fit use cases, such as but not limited to Tcp jumbo frames, large files, etc.
+	//by default, the size is calculated to fit into TCP frame.
+	SIZE = 1500 - TOTAL_HEADER_LEN - INIT_BYTE //1445
 
 	//packet types. this is to be changed possibly, or one could make custom types? these are just hints for receiver.
 	INIT = iota
@@ -33,7 +38,7 @@ const (
 )
 
 //prefix: 			8 bytes
-//headers 			16 bytes
+//headers 			36 bytes
 //envelope headers 		16 bytes
 //envelope Labels		NN bytes
 //message headers (built in) 	2 bytes
@@ -49,6 +54,7 @@ type Envelope struct {
 
 	MessageSizeLimit int  //limit of message size (for tcp frames)
 	AutoIncrement    bool //automatically increment message index
+	IncludeChecksum  bool
 }
 
 //NewEnvelope creates new envelope structure.
@@ -79,12 +85,13 @@ func NewEnvelope() *Envelope {
 		},
 		MessageSizeLimit: SIZE,
 		AutoIncrement:    true,
+		IncludeChecksum:  true,
 	}
 	return &e
 }
 
 //Checksum generates checksum from all of the envelope feature checksums
-func (e *Envelope) Checksum() ([]byte, error) {
+func (e *Envelope) Checksum(from, to int) ([]byte, error) {
 	prefixChecksum, err := e.Prefix.Checksum()
 	if err != nil {
 		return nil, err
@@ -105,11 +112,15 @@ func (e *Envelope) Checksum() ([]byte, error) {
 		return nil, err
 	}
 
-	messageChecksum, err := e.Message.Checksum()
+	var messageChecksum []byte
+	if from == 0 && to == 0 {
+		messageChecksum, err = e.Message.Checksum()
+	} else {
+		messageChecksum, err = e.Message.ChecksumFromBytes(from, to)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	outputChecksums := [][]byte{prefixChecksum, headerChecksum, envelopeHeadersChecksum, envelopeLabelsChecksum, messageChecksum}
 	var data []byte
 	for _, v := range outputChecksums {
@@ -140,10 +151,14 @@ func (e *Envelope) Generate() (*[]byte, int, error) {
 //	}
 func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 	limit := 0
-	if e.Message.Len() > e.MessageSizeLimit {
-		limit = e.MessageSizeLimit
+	if e.Message.Len()+e.EnvelopeLabels.Len() > e.MessageSizeLimit {
+		limit = e.MessageSizeLimit - e.EnvelopeLabels.Len()
 	} else {
 		limit = e.Message.Len()
+	}
+
+	if limit < 1 {
+		return nil, 0, errors.New("Envelope labels are longer than the message limit.")
 	}
 
 	var b []byte = make([]byte, 0)
@@ -156,8 +171,6 @@ func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 	if read < limit {
 		limit = read
 	}
-
-	//prefix
 	e.Prefix.Length = e.Prefix.HeaderLength + uint16(e.EnvelopeLabels.Len()) + uint16(limit)
 	prefix, err := e.Prefix.Generate()
 	if err != nil {
@@ -168,12 +181,6 @@ func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 	//headers
 	e.Headers.TotalLength = uint64(e.Message.Len())
 	e.Headers.CalculatePacketCount(e.MessageSizeLimit)
-	headers, err := e.Headers.Generate()
-	if err != nil {
-		return nil, 0, err
-	}
-
-	b = append(b, (*headers)...)
 
 	//envelope headers
 	e.EnvelopeHeaders.SetLengths(e.EnvelopeLabels)
@@ -181,7 +188,6 @@ func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	b = append(b, (*envelopeHeaders)...)
 
 	//envelope labels
 	envelopeLabels, err := e.EnvelopeLabels.Generate()
@@ -189,13 +195,31 @@ func (e *Envelope) GenerateFromByte(n int) (*[]byte, int, error) {
 		return nil, 0, err
 	}
 
+	if e.IncludeChecksum {
+		checksum, err := e.Checksum(n, n+limit)
+		if err != nil {
+			return nil, 0, err
+		}
+		copy(e.Headers.PacketChecksum[:], checksum[:20])
+	}
+	headers, err := e.Headers.Generate()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	b = append(b, (*headers)...)
+
+	b = append(b, (*envelopeHeaders)...)
+
 	b = append(b, (*envelopeLabels)...)
 
 	//add message
 	b = append(b, (*message)...)
+
 	if e.AutoIncrement {
 		e.Headers.IncrementIndex()
 	}
+
 	return &b, limit, nil
 }
 

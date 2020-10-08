@@ -40,7 +40,7 @@ func TestReader(t *testing.T) {
 
 			env := reader.GetEnvelope()
 			if fmt.Sprintf("%+v", (*env.Message.Data)) != fmt.Sprintf("%+v", d) {
-				t.Fatal(fmt.Errorf("incorrect data received in envelope?"))
+				t.Fatal(fmt.Errorf("incorrect data received in envelope? Received: \n%+v\nexpected: \n%+v", (*env.Message.Data), d))
 			}
 			//			fmt.Printf("\nenvelope:\n---\n%+v\n---\nid: %+v\nfeat: %+v\nmsg: %+v\n", reader.GetEnvelope(), string(env.EnvelopeLabels.MessageId[:]), string(env.EnvelopeLabels.MessageFeature[:]), string((*env.Message.Data)[:]))
 		}

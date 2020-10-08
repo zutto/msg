@@ -285,7 +285,6 @@ func (s *StreamReader) not_readHeaders(data *[]byte) error {
 }
 
 func (s *StreamReader) readHeaders() (int, error) {
-	//cont todo
 	var header []byte = make([]byte, HEADER_LEN)
 	r, err := s.readFull(&header)
 	if err != nil {
@@ -338,6 +337,7 @@ func (s *StreamReader) readEnvelopeLabels() (int, error) {
 // e.Prefix.Length = e.Prefix.HeaderLength + uint16(e.EnvelopeLabels.Len()) + uint16(limit)
 func (s *StreamReader) readMessage() (int, error) {
 	//+2 = compressed/compressiontype bytes
+
 	var message []byte = make([]byte, int(s.envelope.Prefix.Length)-int(s.envelope.Prefix.HeaderLength)-s.envelope.EnvelopeLabels.Len()+2)
 	r, err := s.readFull(&message)
 	if err != nil {

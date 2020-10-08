@@ -42,7 +42,8 @@ func (s *StreamWriter) Write(d []byte) (int, error) {
 			}
 			written += wrote
 		}
-
+		//		fmt.Printf("writer: %+v\n", s.envelope)
+		//s.envelope.Checksum(0, 0)
 		processed += n
 		round++
 

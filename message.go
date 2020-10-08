@@ -38,10 +38,27 @@ func (m *Message) Parse(data *[]byte, pad int) error {
 	return nil
 }
 
+func (m *Message) AppendData(data []byte) error {
+	nd := append(*m.Data, data...)
+	m.Data = &nd
+	return nil
+}
+
 //SetData is convenience function to set the data.
 func (m *Message) SetData(d []byte) error {
 	m.Data = &d
 	return nil
+}
+
+func (m *Message) ChecksumFromBytes(from, to int) ([]byte, error) {
+	data, _, err := m.GetData(from, to)
+	if err != nil {
+		return nil, err
+	}
+
+	output := sha1.Sum((*data)[:])
+	return output[:], nil
+
 }
 
 //Checksum generates SHA-1 checksum from the message.
