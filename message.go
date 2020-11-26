@@ -23,6 +23,8 @@ type Message struct {
 	Compressed      bool  //true false if current data is compressed
 	CompressionType uint8 //compression type used/to be used.
 
+	MiddleWares []Middleware //
+
 	lock sync.Mutex
 }
 
@@ -36,6 +38,25 @@ func (m *Message) Parse(data *[]byte, pad int) error {
 	var d []byte = (*data)[pad+MESSAGE_PREFIX_LEN:]
 	m.Data = &d
 	return nil
+}
+
+func (m *Message) MiddlewareUnwrap() error {
+	for _, v := range m.MiddleWares {
+		if err := v.Unwrap(m.data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Message) MiddlewareWrap() error {
+	for _, v := range m.MiddleWares {
+		if err := v.Wrap(m.data); err != nil {
+			return err
+		}
+	}
+	return nil
+
 }
 
 func (m *Message) AppendData(data []byte) error {
